@@ -15,7 +15,6 @@
             align-items: center;
             height: 100vh;
         }
-
         .container {
             background: white;
             padding: 2rem;
@@ -25,12 +24,10 @@
             max-width: 400px;
             width: 100%;
         }
-
         h1 {
             color: #0088cc;
             margin-bottom: 1.5rem;
         }
-
         .connect-btn {
             background-color: #0088cc;
             color: white;
@@ -41,23 +38,19 @@
             cursor: pointer;
             transition: background-color 0.3s;
         }
-
         .connect-btn:hover {
             background-color: #006699;
         }
-
         .wallet-info {
             margin-top: 1.5rem;
             padding: 1rem;
             background-color: #f0f8ff;
             border-radius: 5px;
         }
-
         .wallet-info p {
             margin: 0 0 1rem 0;
             word-break: break-all;
         }
-
         .disconnect-btn {
             background-color: #ff4444;
             color: white;
@@ -67,9 +60,12 @@
             border-radius: 5px;
             cursor: pointer;
         }
-
         .hidden {
             display: none;
+        }
+        .error {
+            color: #ff4444;
+            margin-top: 1rem;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@tonconnect/sdk@latest/dist/tonconnect-sdk.min.js"></script>
@@ -82,67 +78,93 @@
             <p>Connected Wallet: <span id="walletAddress"></span></p>
             <button id="disconnectButton" class="disconnect-btn">Disconnect</button>
         </div>
+        <div id="errorMessage" class="error hidden"></div>
     </div>
 
     <script>
-        // Initialize the connector with your manifest URL
-        const connector = new TonConnect.TonConnect({
-            manifestUrl: 'https://arpitraj02.github.io/Tgminiapp/tonconnect-manifest.json'
-        });
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize the connector with your manifest URL
+            const connector = new TonConnect.TonConnect({
+                manifestUrl: 'https://arpitraj02.github.io/Tgminiapp/tonconnect-manifest.json'
+            });
 
-        // DOM elements
-        const connectButton = document.getElementById('connectButton');
-        const disconnectButton = document.getElementById('disconnectButton');
-        const walletInfo = document.getElementById('walletInfo');
-        const walletAddress = document.getElementById('walletAddress');
+            // DOM elements
+            const connectButton = document.getElementById('connectButton');
+            const disconnectButton = document.getElementById('disconnectButton');
+            const walletInfo = document.getElementById('walletInfo');
+            const walletAddress = document.getElementById('walletAddress');
+            const errorMessage = document.getElementById('errorMessage');
 
-        // Check if wallet is already connected
-        async function checkConnection() {
-            const walletConnectionSource = {
-                jsBridgeKey: 'tonconnect'
-            };
-
-            const connected = await connector.connect(walletConnectionSource);
-            
-            if (connected) {
-                const account = connector.account;
-                walletAddress.textContent = account.address;
-                walletInfo.classList.remove('hidden');
-                connectButton.classList.add('hidden');
+            // Function to show error
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.classList.remove('hidden');
+                setTimeout(() => errorMessage.classList.add('hidden'), 5000);
             }
-        }
 
-        // Connect wallet button click
-        connectButton.addEventListener('click', async () => {
-            try {
-                const walletConnectionSource = {
-                    jsBridgeKey: 'tonconnect'
-                };
-
-                await connector.connect(walletConnectionSource);
-                
-                connector.onStatusChange((wallet) => {
-                    if (wallet) {
-                        walletAddress.textContent = wallet.account.address;
-                        walletInfo.classList.remove('hidden');
-                        connectButton.classList.add('hidden');
+            // Check if wallet is already connected
+            async function checkConnection() {
+                try {
+                    const connected = await connector.connected;
+                    if (connected) {
+                        updateUI(connected);
                     }
-                });
-            } catch (error) {
-                console.error('Connection error:', error);
-                alert('Failed to connect wallet. Please try again.');
+                } catch (error) {
+                    console.error('Connection check error:', error);
+                }
             }
-        });
 
-        // Disconnect wallet button click
-        disconnectButton.addEventListener('click', async () => {
-            await connector.disconnect();
-            walletInfo.classList.add('hidden');
-            connectButton.classList.remove('hidden');
-        });
+            // Update UI based on connection state
+            function updateUI(wallet) {
+                if (wallet) {
+                    walletAddress.textContent = shortenAddress(wallet.account.address);
+                    walletInfo.classList.remove('hidden');
+                    connectButton.classList.add('hidden');
+                } else {
+                    walletInfo.classList.add('hidden');
+                    connectButton.classList.remove('hidden');
+                }
+            }
 
-        // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', checkConnection);
+            // Shorten wallet address for display
+            function shortenAddress(address) {
+                return address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : '';
+            }
+
+            // Connect wallet button click
+            connectButton.addEventListener('click', async () => {
+                try {
+                    const wallets = await connector.getWallets();
+                    if (wallets.length === 0) {
+                        showError('No wallets found. Please install a TON wallet.');
+                        return;
+                    }
+                    
+                    await connector.connect(wallets[0]);
+                } catch (error) {
+                    console.error('Connection error:', error);
+                    showError('Failed to connect. Please try again.');
+                }
+            });
+
+            // Disconnect wallet button click
+            disconnectButton.addEventListener('click', async () => {
+                try {
+                    await connector.disconnect();
+                } catch (error) {
+                    console.error('Disconnection error:', error);
+                    showError('Failed to disconnect. Please try again.');
+                }
+            });
+
+            // Subscribe to connection status changes
+            connector.onStatusChange((wallet) => {
+                updateUI(wallet);
+            });
+
+            // Initial connection check
+            await checkConnection();
+        });
     </script>
 </body>
 </html>
