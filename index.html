@@ -1,29 +1,148 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Connect Wallet</title>
-  <script src="https://unpkg.com/@tonconnect/sdk@latest"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TON Wallet Connect</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #0088cc;
+            margin-bottom: 1.5rem;
+        }
+
+        .connect-btn {
+            background-color: #0088cc;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .connect-btn:hover {
+            background-color: #006699;
+        }
+
+        .wallet-info {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background-color: #f0f8ff;
+            border-radius: 5px;
+        }
+
+        .wallet-info p {
+            margin: 0 0 1rem 0;
+            word-break: break-all;
+        }
+
+        .disconnect-btn {
+            background-color: #ff4444;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tonconnect/sdk@latest/dist/tonconnect-sdk.min.js"></script>
 </head>
 <body>
-  <button id="connectButton">Connect to Wallet</button>
+    <div class="container">
+        <h1>Connect TON Wallet</h1>
+        <button id="connectButton" class="connect-btn">Connect Wallet</button>
+        <div id="walletInfo" class="wallet-info hidden">
+            <p>Connected Wallet: <span id="walletAddress"></span></p>
+            <button id="disconnectButton" class="disconnect-btn">Disconnect</button>
+        </div>
+    </div>
 
-  <script>
-    const tonConnect = new TON_CONNECT.TonConnect({
-      manifestUrl: 'https://arpitraj02.github.io/Tgminiapp/tonconnect-manifest.json'
-    });
+    <script>
+        // Initialize the connector with your manifest URL
+        const connector = new TonConnect.TonConnect({
+            manifestUrl: 'https://arpitraj02.github.io/Tgminiapp/tonconnect-manifest.json'
+        });
 
-    const button = document.getElementById('connectButton');
+        // DOM elements
+        const connectButton = document.getElementById('connectButton');
+        const disconnectButton = document.getElementById('disconnectButton');
+        const walletInfo = document.getElementById('walletInfo');
+        const walletAddress = document.getElementById('walletAddress');
 
-    button.onclick = async () => {
-      try {
-        await tonConnect.connect();
-        const walletInfo = tonConnect.wallet;
-        alert("Connected: " + walletInfo.account.address);
-        // Send wallet info to your bot if needed via Telegram Web App's backend.
-      } catch (error) {
-        console.error("Connection failed", error);
-      }
-    };
-  </script>
+        // Check if wallet is already connected
+        async function checkConnection() {
+            const walletConnectionSource = {
+                jsBridgeKey: 'tonconnect'
+            };
+
+            const connected = await connector.connect(walletConnectionSource);
+            
+            if (connected) {
+                const account = connector.account;
+                walletAddress.textContent = account.address;
+                walletInfo.classList.remove('hidden');
+                connectButton.classList.add('hidden');
+            }
+        }
+
+        // Connect wallet button click
+        connectButton.addEventListener('click', async () => {
+            try {
+                const walletConnectionSource = {
+                    jsBridgeKey: 'tonconnect'
+                };
+
+                await connector.connect(walletConnectionSource);
+                
+                connector.onStatusChange((wallet) => {
+                    if (wallet) {
+                        walletAddress.textContent = wallet.account.address;
+                        walletInfo.classList.remove('hidden');
+                        connectButton.classList.add('hidden');
+                    }
+                });
+            } catch (error) {
+                console.error('Connection error:', error);
+                alert('Failed to connect wallet. Please try again.');
+            }
+        });
+
+        // Disconnect wallet button click
+        disconnectButton.addEventListener('click', async () => {
+            await connector.disconnect();
+            walletInfo.classList.add('hidden');
+            connectButton.classList.remove('hidden');
+        });
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', checkConnection);
+    </script>
 </body>
 </html>
